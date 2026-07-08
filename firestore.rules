@@ -1,0 +1,53 @@
+rules_version = '2';
+
+// ============================================================================
+// Firestore Security Rules — EMI Vault
+// ----------------------------------------------------------------------------
+// - Any signed-in family member can READ all loans/payments/users.
+// - Only users whose /users/{uid} doc has role == "admin" can WRITE
+//   loans, payments, or change other users' roles.
+// - Every signed-in user can edit their OWN profile fields (name, etc.)
+//   but cannot change their own role (prevents self-promotion).
+// Deploy via: Firebase Console > Firestore Database > Rules, or
+// `firebase deploy --only firestore:rules` with the Firebase CLI.
+// ============================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ---- Users ----------------------------------------------------------
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      // A user can create their own profile doc on sign-up.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // A user can update their own doc EXCEPT the `role` field, unless they are admin.
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ---- Loans ------------------------------------------------------------
+    match /loans/{loanId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---- Payments ----------------------------------------------------------
+    match /payments/{paymentId} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+  }
+}
