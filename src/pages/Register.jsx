@@ -1,20 +1,25 @@
 // ============================================================================
-// Register page — family members create accounts. The first person to sign
-// up in a fresh Firebase project automatically becomes Admin (see
-// authService.registerUser).
+// Register page — family members create accounts. The designated owner
+// email becomes Super Admin; everyone else starts as a Member.
 // ============================================================================
 import { useState } from 'react';
 import { Box, Paper, TextField, Button, Typography, Stack, Alert } from '@mui/material';
 import { motion } from 'framer-motion';
 import { UserPlus } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { registerUser } from '../firebase/authService';
+import { useAuth } from '../context/AuthContext';
 
 export default function Register() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  if (!authLoading && user) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleChange = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -69,7 +74,8 @@ export default function Register() {
             </Box>
             <Typography variant="h5" sx={{ fontWeight: 800 }}>Create your account</Typography>
             <Typography variant="body2" color="text.secondary" align="center">
-              Join your family's EMI Vault to track loans together
+              Join your family's EMI Vault. New accounts start as Member;
+              Super Admin can promote you.
             </Typography>
           </Stack>
 

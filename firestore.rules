@@ -3,11 +3,15 @@ rules_version = '2';
 // ============================================================================
 // Firestore Security Rules — EMI Vault
 // ----------------------------------------------------------------------------
+// Roles: super_admin ⊃ admin ⊃ member
 // - Any signed-in family member can READ all loans/payments/users.
-// - Only users whose /users/{uid} doc has role == "admin" can WRITE
-//   loans, payments, or change other users' roles.
-// - Every signed-in user can edit their OWN profile fields (name, etc.)
-//   but cannot change their own role (prevents self-promotion).
+// - Admin and Super Admin can WRITE loans and payments.
+// - Only Super Admin can assign the super_admin role.
+// - Regular Admins can promote/demote member ↔ admin, but cannot touch
+//   Super Admin accounts.
+// - Super Admin is also granted by email allowlist (must stay in sync with
+//   src/config/superAdmins.js). That lets the owner claim the role on login
+//   even if their existing profile still says "admin".
 // Deploy via: Firebase Console > Firestore Database > Rules, or
 // `firebase deploy --only firestore:rules` with the Firebase CLI.
 // ============================================================================
@@ -18,24 +22,79 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function callerPath() {
+      return /databases/$(database)/documents/users/$(request.auth.uid);
+    }
+
+    function hasProfile() {
+      return isSignedIn() && exists(callerPath());
+    }
+
+    function callerRole() {
+      return get(callerPath()).data.role;
+    }
+
+    // Keep this list in sync with src/config/superAdmins.js
+    function isDesignatedSuperAdmin() {
+      return isSignedIn()
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() in [
+          'stalin.nadar@privacera.com'
+        ];
+    }
+
+    function isSuperAdmin() {
+      return isDesignatedSuperAdmin()
+        || (hasProfile() && callerRole() == 'super_admin');
+    }
+
     function isAdmin() {
-      return isSignedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return isSuperAdmin()
+        || (hasProfile() && callerRole() == 'admin');
+    }
+
+    function isChangingRole() {
+      return request.resource.data.role != resource.data.role;
+    }
+
+    function requestedRole() {
+      return request.resource.data.role;
     }
 
     // ---- Users ----------------------------------------------------------
     match /users/{userId} {
       allow read: if isSignedIn();
-      // A user can create their own profile doc on sign-up.
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      // A user can update their own doc EXCEPT the `role` field, unless they are admin.
+
+      // Own profile only. Super Admin is reserved for the email allowlist;
+      // everyone else is created as member. Admins are promoted later by
+      // Super Admin (or an existing Admin) on the Family Members page.
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && (
+          requestedRole() == 'member'
+          || (requestedRole() == 'super_admin' && isDesignatedSuperAdmin())
+        );
+
       allow update: if isSignedIn() && (
-        (request.auth.uid == userId &&
-          request.resource.data.role == resource.data.role) ||
-        isAdmin()
+        // Anyone can edit their own profile fields except role.
+        (request.auth.uid == userId && !isChangingRole())
+        // Allowlisted owner may claim Super Admin on their own doc.
+        || (request.auth.uid == userId
+            && isDesignatedSuperAdmin()
+            && requestedRole() == 'super_admin')
+        // Super Admin can change other people's roles.
+        || (isSuperAdmin()
+            && request.auth.uid != userId
+            && requestedRole() in ['member', 'admin', 'super_admin'])
+        // Regular Admin can promote/demote member ↔ admin, not Super Admin.
+        || (isAdmin()
+            && !isSuperAdmin()
+            && request.auth.uid != userId
+            && resource.data.role != 'super_admin'
+            && requestedRole() in ['member', 'admin'])
       );
-      allow delete: if isAdmin();
+
+      allow delete: if isSuperAdmin();
     }
 
     // ---- Loans ------------------------------------------------------------

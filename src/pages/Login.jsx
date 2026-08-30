@@ -5,28 +5,51 @@ import { useState } from 'react';
 import { Box, Paper, TextField, Button, Typography, Stack, Alert, InputAdornment, IconButton } from '@mui/material';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, Wallet } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-import { loginUser } from '../firebase/authService';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { loginUser, resetPassword } from '../firebase/authService';
+import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [info, setInfo] = useState('');
   const [loading, setLoading] = useState(false);
+
+  if (!authLoading && user) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setInfo('');
     setLoading(true);
     try {
       await loginUser(email, password);
       navigate('/');
-    } catch (err) {
+    } catch {
       setError('Invalid email or password. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    setError('');
+    setInfo('');
+    if (!email) {
+      setError('Enter your email first, then click Forgot password.');
+      return;
+    }
+    try {
+      await resetPassword(email);
+      setInfo('Password reset email sent. Check your inbox.');
+    } catch {
+      setError('Could not send a reset email. Check the address and try again.');
     }
   };
 
@@ -66,6 +89,7 @@ export default function Login() {
           </Stack>
 
           {error && <Alert severity="error" sx={{ mb: 2, borderRadius: '12px' }}>{error}</Alert>}
+          {info && <Alert severity="success" sx={{ mb: 2, borderRadius: '12px' }}>{info}</Alert>}
 
           <Box component="form" onSubmit={handleSubmit}>
             <Stack spacing={2}>
@@ -98,6 +122,9 @@ export default function Login() {
               />
               <Button type="submit" variant="contained" size="large" fullWidth disabled={loading} sx={{ py: 1.3 }}>
                 {loading ? 'Signing in…' : 'Sign In'}
+              </Button>
+              <Button type="button" variant="text" onClick={handleResetPassword} disabled={loading}>
+                Forgot password?
               </Button>
             </Stack>
           </Box>

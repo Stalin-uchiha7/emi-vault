@@ -24,6 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import { useThemeMode } from '../context/ThemeModeContext';
 import { auth, db } from '../firebase/config';
 import { CURRENCIES, COLLECTIONS } from '../constants';
+import { getRoleLabel } from '../utils/roles';
 import { downloadBackup, restoreBackup } from '../utils/backupRestore';
 import ConfirmDialog from '../components/common/ConfirmDialog';
 
@@ -90,7 +91,7 @@ export default function SettingsPage() {
               <Box>
                 <Typography sx={{ fontWeight: 700 }}>{profile?.email}</Typography>
                 <Typography variant="caption" color="text.secondary">
-                  Role: {isAdmin ? 'Admin' : 'Member'}
+                  Role: {getRoleLabel(profile?.role)}
                 </Typography>
               </Box>
             </Stack>

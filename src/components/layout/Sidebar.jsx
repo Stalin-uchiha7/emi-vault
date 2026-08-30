@@ -26,7 +26,7 @@ const navItems = [
 const adminOnlyItems = [{ label: 'Family Members', path: '/users', icon: Users }];
 
 export default function Sidebar() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isSuperAdmin } = useAuth();
   const items = isAdmin ? [...navItems.slice(0, 4), ...adminOnlyItems, navItems[4]] : navItems;
 
   return (
@@ -93,7 +93,7 @@ export default function Sidebar() {
 
       <Box sx={{ px: 1.6, py: 1.5, borderRadius: '14px', bgcolor: 'action.hover' }}>
         <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-          {isAdmin ? 'Admin access' : 'Member access'}
+          {isSuperAdmin ? 'Super Admin access' : isAdmin ? 'Admin access' : 'Member access'}
         </Typography>
       </Box>
     </Box>

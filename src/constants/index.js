@@ -37,8 +37,15 @@ export const STATUS_COLORS = {
 };
 
 export const USER_ROLES = {
+  SUPER_ADMIN: 'super_admin',
   ADMIN: 'admin',
   MEMBER: 'member',
+};
+
+export const ROLE_LABELS = {
+  [USER_ROLES.SUPER_ADMIN]: 'Super Admin',
+  [USER_ROLES.ADMIN]: 'Admin',
+  [USER_ROLES.MEMBER]: 'Member',
 };
 
 export const CURRENCIES = {

@@ -1,12 +1,12 @@
 // ============================================================================
 // AuthContext — tracks the current Firebase user + their Firestore profile
-// (which carries the `role` used for admin/member permission checks).
+// (which carries the `role` used for Super Admin / Admin / Member checks).
 // ============================================================================
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { getUserProfile } from '../firebase/authService';
-import { USER_ROLES } from '../constants';
+import { ensureSuperAdminRole, getUserProfile } from '../firebase/authService';
+import { hasAdminAccess, isSuperAdminRole } from '../utils/roles';
 
 const AuthContext = createContext(null);
 
@@ -19,8 +19,9 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const p = await getUserProfile(firebaseUser.uid);
-        setProfile(p);
+        const loadedProfile = await getUserProfile(firebaseUser.uid);
+        const resolvedProfile = await ensureSuperAdminRole(firebaseUser, loadedProfile);
+        setProfile(resolvedProfile);
       } else {
         setProfile(null);
       }
@@ -29,10 +30,11 @@ export function AuthProvider({ children }) {
     return unsubscribe;
   }, []);
 
-  const isAdmin = profile?.role === USER_ROLES.ADMIN;
+  const isSuperAdmin = isSuperAdminRole(profile?.role);
+  const isAdmin = hasAdminAccess(profile?.role);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, isAdmin, setProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, isAdmin, isSuperAdmin, setProfile }}>
       {children}
     </AuthContext.Provider>
   );
