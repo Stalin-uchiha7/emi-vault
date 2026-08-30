@@ -5,7 +5,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '../firebase/config';
-import { ensureSuperAdminRole, getUserProfile } from '../firebase/authService';
+import { ensureUserProfile } from '../firebase/authService';
 import { hasAdminAccess, isSuperAdminRole } from '../utils/roles';
 
 const AuthContext = createContext(null);
@@ -19,8 +19,7 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        const loadedProfile = await getUserProfile(firebaseUser.uid);
-        const resolvedProfile = await ensureSuperAdminRole(firebaseUser, loadedProfile);
+        const resolvedProfile = await ensureUserProfile(firebaseUser);
         setProfile(resolvedProfile);
       } else {
         setProfile(null);

@@ -41,6 +41,39 @@ export async function registerUser({ name, email, password }) {
 }
 
 /**
+ * Guarantee a Firestore /users/{uid} doc exists for the signed-in Auth user.
+ * Re-registration creates a new Auth uid; the old profile doc is then orphaned
+ * and getUserProfile returns null. Recreate the doc (Super Admin if the email
+ * is allowlisted, otherwise Member).
+ */
+export async function ensureUserProfile(firebaseUser) {
+  if (!firebaseUser) return null;
+
+  const existingProfile = await getUserProfile(firebaseUser.uid);
+  if (existingProfile) {
+    return ensureSuperAdminRole(firebaseUser, existingProfile);
+  }
+
+  const role = resolveSignupRole({ email: firebaseUser.email });
+  const profile = {
+    uid: firebaseUser.uid,
+    name: firebaseUser.displayName || firebaseUser.email || 'Member',
+    email: firebaseUser.email,
+    role,
+  };
+
+  try {
+    await setDoc(doc(db, COLLECTIONS.USERS, firebaseUser.uid), {
+      ...profile,
+      createdAt: serverTimestamp(),
+    });
+    return profile;
+  } catch {
+    return profile;
+  }
+}
+
+/**
  * If this account's email is on the Super Admin allowlist, persist that role.
  * Safe to call on every login — no-ops when already Super Admin.
  */
