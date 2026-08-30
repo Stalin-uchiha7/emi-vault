@@ -22,11 +22,19 @@ import { auth, db } from './config';
 import { COLLECTIONS, USER_ROLES } from '../constants';
 
 export async function registerUser({ name, email, password }) {
-  const usersSnap = await getDocs(collection(db, COLLECTIONS.USERS));
-  const isFirstUser = usersSnap.empty;
-
+  // Create the auth user FIRST. The "is this the first user?" check below reads
+  // the users collection, and the security rules only allow that read for a
+  // signed-in user — doing it before sign-up fails with permission-denied.
   const credential = await createUserWithEmailAndPassword(auth, email, password);
   await updateProfile(credential.user, { displayName: name });
+
+  let isFirstUser = false;
+  try {
+    const usersSnap = await getDocs(collection(db, COLLECTIONS.USERS));
+    isFirstUser = usersSnap.empty;
+  } catch {
+    isFirstUser = false;
+  }
 
   await setDoc(doc(db, COLLECTIONS.USERS, credential.user.uid), {
     uid: credential.user.uid,
