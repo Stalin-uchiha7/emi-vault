@@ -6,6 +6,7 @@
 // ============================================================================
 
 const BUILT_IN_SUPER_ADMIN_EMAILS = [
+  's76652@gmail.com',
   'stalin.nadar@privacera.com',
 ];
 

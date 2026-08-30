@@ -39,6 +39,7 @@ service cloud.firestore {
       return isSignedIn()
         && request.auth.token.email is string
         && request.auth.token.email.lower() in [
+          's76652@gmail.com',
           'stalin.nadar@privacera.com'
         ];
     }
